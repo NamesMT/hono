@@ -25,12 +25,12 @@ export type ClientRequestOptions<T = unknown> = {
       headers: T | (() => T | Promise<T>)
     })
 
-export type ClientRequest<S extends Schema> = {
+export type ClientRequest<S extends Schema, DefaultResponse = {}> = {
   [M in keyof S]: S[M] extends Endpoint & { input: infer R }
     ? R extends object
       ? HasRequiredKeys<R> extends true
-        ? (args: R, options?: ClientRequestOptions) => Promise<ClientResponseOfEndpoint<S[M]>>
-        : (args?: R, options?: ClientRequestOptions) => Promise<ClientResponseOfEndpoint<S[M]>>
+        ? (args: R, options?: ClientRequestOptions) => Promise<ClientResponseOfEndpoint<S[M], DefaultResponse>>
+        : (args?: R, options?: ClientRequestOptions) => Promise<ClientResponseOfEndpoint<S[M], DefaultResponse>>
       : never
     : never
 } & {
@@ -58,7 +58,7 @@ type BlankRecordToNever<T> = T extends any
     : T
   : never
 
-type ClientResponseOfEndpoint<T extends Endpoint = Endpoint> = T extends {
+type ClientResponseOfEndpoint<T extends Endpoint = Endpoint, DefaultResponse = {}> = T extends {
   output: infer O
   outputFormat: infer F
   status: infer S
@@ -66,12 +66,12 @@ type ClientResponseOfEndpoint<T extends Endpoint = Endpoint> = T extends {
   ? F extends 'redirect'
     ? ClientResponse<O, S extends RedirectStatusCode ? S : never, 'redirect'>
     :
-        | ClientResponse<O, S extends StatusCode ? S : never, F extends ResponseFormat ? F : never>
-        | ClientResponse<
-            {},
-            S extends StatusCode ? Exclude<Exclude<StatusCode, RedirectStatusCode>, S> : never,
-            F extends ResponseFormat ? F : never
-          >
+      | ClientResponse<O, S extends StatusCode ? S : never, F extends ResponseFormat ? F : never>
+      | ClientResponse<
+          DefaultResponse,
+          S extends StatusCode ? Exclude<Exclude<StatusCode, RedirectStatusCode>, S> : never,
+          F extends ResponseFormat ? F : never
+        >
   : never
 
 export interface ClientResponse<
@@ -156,25 +156,33 @@ export type InferRequestOptionsType<T> = T extends (
   ? NonNullable<R>
   : never
 
+type PathChaining<
+  Path extends string,
+  E extends Schema,
+  DefaultResponse = {}
+> = PathToChain<Path, E, Path, DefaultResponse>
+
 type PathToChain<
   Path extends string,
   E extends Schema,
-  Original extends string = Path
+  Original extends string = Path,
+  DefaultResponse = {}
 > = Path extends `/${infer P}`
-  ? PathToChain<P, E, Path>
+  ? PathToChain<P, E, Path, DefaultResponse>
   : Path extends `${infer P}/${infer R}`
-  ? { [K in P]: PathToChain<R, E, Original> }
+  ? { [K in P]: PathToChain<R, E, Original, DefaultResponse> }
   : {
       [K in Path extends '' ? 'index' : Path]: ClientRequest<
-        E extends Record<string, unknown> ? E[Original] : never
+        E extends Record<string, unknown> ? E[Original] : never,
+        DefaultResponse
       >
     }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Client<T> = T extends Hono<any, infer S, any>
+export type Client<T, DefaultResponse = {}> = T extends Hono<any, infer S, any>
   ? S extends Record<infer K, Schema>
     ? K extends string
-      ? PathToChain<K, S>
+      ? PathChaining<K, S, DefaultResponse>
       : never
     : never
   : never

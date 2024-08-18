@@ -134,8 +134,26 @@ class ClientRequestImpl {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const hc = <T extends Hono<any, any, any>>(
+
+/**
+ * @param baseUrl The base URL of the Hono instance.
+ * @param options The options for the client.
+ * @returns A hono API client instance.
+ * 
+ * **Typedoc**: <Hono, DefaultResponse>
+ * 
+ * - Hono: The type of the Hono instance.
+ * 
+ * - DefaultResponse: This is used in cases where the response is unknown,  
+ * e.g. checking for an unknown status code:
+ * ```ts
+ * // The response of status code 400 is processed by a middleware and not explicitly defined in the router type flow.
+ * if (res.status === 400) {
+ *   const data = await res.json() // will be typeof `DefaultResponse`
+ * }
+ * ```
+ */
+export const hc = <H extends Hono<any, any, any>, DefaultResponse = {}>(
   baseUrl: string,
   options?: ClientRequestOptions
 ) =>
@@ -211,4 +229,4 @@ export const hc = <T extends Hono<any, any, any>>(
       return req.fetch(opts.args[0], args)
     }
     return req
-  }, []) as UnionToIntersection<Client<T>>
+  }, []) as UnionToIntersection<Client<H, DefaultResponse>>
