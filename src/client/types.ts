@@ -1,7 +1,7 @@
 import type { Hono } from '../hono'
 import type { Endpoint, ResponseFormat, Schema } from '../types'
 import type { RedirectStatusCode, StatusCode, SuccessStatusCode } from '../utils/http-status'
-import type { HasRequiredKeys } from '../utils/types'
+import type { Equal, HasRequiredKeys } from '../utils/types'
 
 type HonoRequest = (typeof Hono.prototype)['request']
 
@@ -65,13 +65,15 @@ type ClientResponseOfEndpoint<T extends Endpoint = Endpoint, DefaultResponse = {
 }
   ? F extends 'redirect'
     ? ClientResponse<O, S extends RedirectStatusCode ? S : never, 'redirect'>
-    :
-      | ClientResponse<O, S extends StatusCode ? S : never, F extends ResponseFormat ? F : never>
-      | ClientResponse<
-          DefaultResponse,
-          S extends StatusCode ? Exclude<Exclude<StatusCode, RedirectStatusCode>, S> : never,
-          F extends ResponseFormat ? F : never
-        >
+    : Equal<DefaultResponse, {}> extends true
+      ? ClientResponse<O, S extends StatusCode ? S : never, F extends ResponseFormat ? F : never>
+      :
+        | ClientResponse<O, S extends StatusCode ? S : never, F extends ResponseFormat ? F : never>
+        | ClientResponse<
+            DefaultResponse,
+            S extends StatusCode ? Exclude<Exclude<StatusCode, RedirectStatusCode>, S> : never,
+            F extends ResponseFormat ? F : never
+          >
   : never
 
 export interface ClientResponse<
